@@ -483,6 +483,7 @@ class Generator(torch.nn.Module):
         img_channels,               # Number of output color channels.
         mapping_kwargs      = {},   # Arguments for MappingNetwork.
         synthesis_kwargs    = {},   # Arguments for SynthesisNetwork.
+        cfg                 = {},   # Config
     ):
         super().__init__()
         self.z_dim = z_dim

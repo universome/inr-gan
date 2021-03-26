@@ -1,0 +1,68 @@
+env:
+  python_bin: "/ibex/scratch/projects/c2112/inr-gan/lib/bin/python"
+  base_project_dir: "/ibex/scratch/projects/c2112/inr-gan"
+  before_train_commands:
+    - "module load cuda"
+    - "module load cmake"
+  torch_extensions_dir: "/tmp/torch_extensions"
+  datasets_dir: "/ibex/scratch/projects/c2112/datasets/zip-data-links"
+  objects_to_copy:
+    - ${env.base_project_dir}/src
+    - ${env.base_project_dir}/configs
+  # A list of objects that are static and too big
+  # to be copy-pasted for each experiment
+  symlinks_to_create:
+    - ${env.base_project_dir}/data
+
+num_gpus: 4
+dataset:
+  source_path: ${datasets_dir}/${dataset.name}.zip
+  target_path: data/${dataset.name}.zip
+debug: false
+print_only: false
+use_qos: true
+
+project_release_dir:
+  _target_: src.infra.utils.get_experiment_path
+  master_dir: ${env.base_project_dir}/experiments
+  experiment_name: ${experiment_name}
+
+sbatch_args:
+  constraint: "v100"
+  time: "7-0"
+  gres: gpu:${num_gpus}
+  cpus-per-task: 5
+  mem-per-gpu: 64G
+  cpus-per-gpu: 5
+  output: ${project_release_dir}/slurm.log
+
+sbatch_args_str:
+  _target_: src.infra.utils.cfg_to_args_str
+  cfg: ${sbatch_args}
+
+# Arguments that we want to pass via env into slurm job launcher
+env_args:
+  project_dir: ${project_release_dir}
+
+env_args_str:
+  _target_: src.infra.utils.cfg_to_args_str
+  cfg: ${env_args}
+  use_dashes: true
+
+training_cmd_cli_args:
+  outdir: ${project_release_dir}
+  data: ${dataset.target_path}
+  gpus: ${num_gpus}
+  cfg: auto
+  snap: 100
+
+  # Let's by default have only x flips
+  aug: noaug
+  mirror: 1
+
+  # By default, use the original config
+  hydra_cfg_name: "original.yml"
+
+training_cmd_cli_args_str:
+  _target_: src.infra.utils.cfg_to_args_str
+  cfg: ${training_cmd_cli_args}

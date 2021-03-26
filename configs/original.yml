@@ -1,0 +1,5 @@
+hello: world
+generator:
+  hello: world2
+
+loss_kwargs: {}

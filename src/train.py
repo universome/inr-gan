@@ -15,8 +15,10 @@ import re
 import json
 import tempfile
 import torch
-import dnnlib
+from hydra.experimental import compose, initialize
+from omegaconf import OmegaConf, DictConfig
 
+import dnnlib
 from training import training_loop
 from metrics import metric_main
 from torch_utils import training_stats
@@ -44,7 +46,6 @@ def setup_training_loop_kwargs(
 
     # Base config.
     cfg        = None, # Base config: 'auto' (default), 'stylegan2', 'paper256', 'paper512', 'paper1024', 'cifar'
-    gamma      = None, # Override R1 gamma: <float>
     kimg       = None, # Override training duration: <int>
     batch      = None, # Override batch size: <int>
 
@@ -64,8 +65,13 @@ def setup_training_loop_kwargs(
     allow_tf32 = None, # Allow PyTorch to use TF32 for matmul and convolutions: <bool>, default = False
     nobench    = None, # Disable cuDNN benchmarking: <bool>, default = False
     workers    = None, # Override number of DataLoader workers: <int>, default = 3
+
+    # Configuration
+    hydra_cfg_name = None, # Name of the hydra config
 ):
     args = dnnlib.EasyDict()
+    initialize(config_path="../../../configs", job_name="INR-GAN training")
+    hydra_cfg = compose(config_name=hydra_cfg_name)
 
     # ------------------------------------------
     # General options: gpus, snap, metrics, seed
@@ -152,12 +158,12 @@ def setup_training_loop_kwargs(
     desc += f'-{cfg}'
 
     cfg_specs = {
-        'auto':      dict(ref_gpus=-1, kimg=25000,  mb=-1, mbstd=-1, fmaps=-1,  lrate=-1,     gamma=-1,   ema=-1,  ramp=0.05, map=2), # Populated dynamically based on resolution and GPU count.
-        'stylegan2': dict(ref_gpus=8,  kimg=25000,  mb=32, mbstd=4,  fmaps=1,   lrate=0.002,  gamma=10,   ema=10,  ramp=None, map=8), # Uses mixed-precision, unlike the original StyleGAN2.
-        'paper256':  dict(ref_gpus=8,  kimg=25000,  mb=64, mbstd=8,  fmaps=0.5, lrate=0.0025, gamma=1,    ema=20,  ramp=None, map=8),
-        'paper512':  dict(ref_gpus=8,  kimg=25000,  mb=64, mbstd=8,  fmaps=1,   lrate=0.0025, gamma=0.5,  ema=20,  ramp=None, map=8),
-        'paper1024': dict(ref_gpus=8,  kimg=25000,  mb=32, mbstd=4,  fmaps=1,   lrate=0.002,  gamma=2,    ema=10,  ramp=None, map=8),
-        'cifar':     dict(ref_gpus=2,  kimg=100000, mb=64, mbstd=32, fmaps=1,   lrate=0.0025, gamma=0.01, ema=500, ramp=0.05, map=2),
+        'auto':      dict(ref_gpus=-1, kimg=25000,  mb=-1, mbstd=-1, fmaps=-1,  lrate=-1,     r1_gamma=-1,   ema=-1,  ramp=0.05, map=2), # Populated dynamically based on resolution and GPU count.
+        'stylegan2': dict(ref_gpus=8,  kimg=25000,  mb=32, mbstd=4,  fmaps=1,   lrate=0.002,  r1_gamma=10,   ema=10,  ramp=None, map=8), # Uses mixed-precision, unlike the original StyleGAN2.
+        'paper256':  dict(ref_gpus=8,  kimg=25000,  mb=64, mbstd=8,  fmaps=0.5, lrate=0.0025, r1_gamma=1,    ema=20,  ramp=None, map=8),
+        'paper512':  dict(ref_gpus=8,  kimg=25000,  mb=64, mbstd=8,  fmaps=1,   lrate=0.0025, r1_gamma=0.5,  ema=20,  ramp=None, map=8),
+        'paper1024': dict(ref_gpus=8,  kimg=25000,  mb=32, mbstd=4,  fmaps=1,   lrate=0.002,  r1_gamma=2,    ema=10,  ramp=None, map=8),
+        'cifar':     dict(ref_gpus=2,  kimg=100000, mb=64, mbstd=32, fmaps=1,   lrate=0.0025, r1_gamma=0.01, ema=500, ramp=0.05, map=2),
     }
 
     assert cfg in cfg_specs
@@ -170,7 +176,7 @@ def setup_training_loop_kwargs(
         spec.mbstd = min(spec.mb // gpus, 4) # other hyperparams behave more predictably if mbstd group size remains fixed
         spec.fmaps = 1 if res >= 512 else 0.5
         spec.lrate = 0.002 if res >= 1024 else 0.0025
-        spec.gamma = 0.0002 * (res ** 2) / spec.mb # heuristic formula
+        spec.r1_gamma = 0.0002 * (res ** 2) / spec.mb # heuristic formula
         spec.ema = spec.mb * 10 / 32
 
     args.G_kwargs = dnnlib.EasyDict(class_name='training.networks.Generator', z_dim=512, w_dim=512, mapping_kwargs=dnnlib.EasyDict(), synthesis_kwargs=dnnlib.EasyDict())
@@ -180,11 +186,12 @@ def setup_training_loop_kwargs(
     args.G_kwargs.mapping_kwargs.num_layers = spec.map
     args.G_kwargs.synthesis_kwargs.num_fp16_res = args.D_kwargs.num_fp16_res = 4 # enable mixed-precision training
     args.G_kwargs.synthesis_kwargs.conv_clamp = args.D_kwargs.conv_clamp = 256 # clamp activations to avoid float16 overflow
+    args.G_kwargs.cfg = OmegaConf.to_container(hydra_cfg.generator)
     args.D_kwargs.epilogue_kwargs.mbstd_group_size = spec.mbstd
 
     args.G_opt_kwargs = dnnlib.EasyDict(class_name='torch.optim.Adam', lr=spec.lrate, betas=[0,0.99], eps=1e-8)
     args.D_opt_kwargs = dnnlib.EasyDict(class_name='torch.optim.Adam', lr=spec.lrate, betas=[0,0.99], eps=1e-8)
-    args.loss_kwargs = dnnlib.EasyDict(class_name='training.loss.StyleGAN2Loss', r1_gamma=spec.gamma)
+    args.loss_kwargs = dnnlib.EasyDict(class_name='training.loss.StyleGAN2Loss', r1_gamma=spec.r1_gamma)
 
     args.total_kimg = spec.kimg
     args.batch_size = spec.mb
@@ -197,12 +204,19 @@ def setup_training_loop_kwargs(
         args.loss_kwargs.style_mixing_prob = 0 # disable style mixing
         args.D_kwargs.architecture = 'orig' # disable residual skip connections
 
-    if gamma is not None:
-        assert isinstance(gamma, float)
-        if not gamma >= 0:
-            raise UserError('--gamma must be non-negative')
-        desc += f'-gamma{gamma:g}'
-        args.loss_kwargs.r1_gamma = gamma
+    if 'r1_gamma' in hydra_cfg.loss_kwargs:
+        r1_gamma = hydra_cfg.loss_kwargs.r1_gamma
+        assert isinstance(r1_gamma, float)
+        if not r1_gamma >= 0:
+            raise UserError('r1_gamma must be non-negative')
+        desc += f'-r1_gamma{r1_gamma:g}'
+        args.loss_kwargs.r1_gamma = r1_gamma
+
+    if 'style_mixing_prob' in hydra_cfg.loss_kwargs:
+        args.loss_kwargs.style_mixing_prob = hydra_cfg.loss_kwargs.style_mixing_prob
+
+    if 'pl_weight' in hydra_cfg.loss_kwargs:
+        args.loss_kwargs.pl_weight = hydra_cfg.loss_kwargs.pl_weight
 
     if kimg is not None:
         assert isinstance(kimg, int)
@@ -414,7 +428,6 @@ class CommaSeparatedList(click.ParamType):
 
 # Base config.
 @click.option('--cfg', help='Base config [default: auto]', type=click.Choice(['auto', 'stylegan2', 'paper256', 'paper512', 'paper1024', 'cifar']))
-@click.option('--gamma', help='Override R1 gamma', type=float)
 @click.option('--kimg', help='Override training duration', type=int, metavar='INT')
 @click.option('--batch', help='Override batch size', type=int, metavar='INT')
 
@@ -434,6 +447,9 @@ class CommaSeparatedList(click.ParamType):
 @click.option('--nobench', help='Disable cuDNN benchmarking', type=bool, metavar='BOOL')
 @click.option('--allow-tf32', help='Allow PyTorch to use TF32 internally', type=bool, metavar='BOOL')
 @click.option('--workers', help='Override number of DataLoader workers', type=int, metavar='INT')
+
+# Configuration
+@click.option('--hydra_cfg_name', help='Name of the Hydra hyperparams config', type=str, metavar='STR')
 
 def main(ctx, outdir, dry_run, **config_kwargs):
     """Train a GAN using the techniques described in the paper
