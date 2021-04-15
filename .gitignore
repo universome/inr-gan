@@ -1,9 +1,14 @@
 __pycache__/
 .cache/
 lib/
+env/
 outputs/
 .hydra/
 inr_gan.egg-info/
 experiments/
-data/
+failed-experiments/
+data
 *.log
+notebooks/zoo.ipynb
+.ipynb_checkpoints/
+checkpoints/

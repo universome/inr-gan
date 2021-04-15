@@ -1,0 +1,34 @@
+generator:
+  fp32: true
+  upsampling_mode: nearest
+  use_noise: false
+  fmaps: 1
+
+  input:
+    type: "coords"
+    resolution: 256
+    coord_fuser_cfg: ${coords}
+
+  coords:
+    enabled: true
+    per_resolution: true
+    kernel_size: 1
+    coord_dim: 2
+    fallback: false
+    use_full_cache: false
+    res_configs:
+      "256":
+        log_emb_size: 0
+        const_emb_size: 256
+        shared_emb_size: 256
+        init_dist: rand
+        fourier_scale: 3
+
+  fmm: {enabled: false}
+
+loss_kwargs:
+  r1_gamma: 10.0
+  pl_weight: 0
+  style_mixing_prob: 0.0
+
+discriminator: {fmaps: 1}

@@ -1,0 +1,40 @@
+env:
+  python_bin: "python" # Path to the python bin
+  base_project_dir: ${hydra:runtime.cwd}
+  before_train_commands: []
+  torch_extensions_dir: "/tmp/torch_extensions"
+  datasets_dir: "data"
+  objects_to_copy:
+    - ${env.base_project_dir}/src
+    - ${env.base_project_dir}/configs
+  # A list of objects that are static and too big
+  # to be copy-pasted for each experiment
+  symlinks_to_create:
+    - ${env.base_project_dir}/data
+
+num_gpus: 4
+dataset:
+  source_path: ${env.datasets_dir}/${dataset.name}.zip
+  target_path: data/${dataset.name}.zip
+print_only: false
+
+project_release_dir:
+  _target_: src.infra.utils.get_experiment_path
+  master_dir: ${env.base_project_dir}/experiments
+  experiment_name: ${experiment_name}
+
+train_args:
+  outdir: ${project_release_dir}
+  data: ${dataset.target_path}
+  gpus: ${num_gpus}
+  cfg: auto
+  snap: 100
+
+  # Let's by default have only x flips
+  aug: noaug
+  mirror: 1
+  hydra_cfg_name: "inr-gan.yml"
+
+train_args_str:
+  _target_: src.infra.utils.cfg_to_args_str
+  cfg: ${train_args}

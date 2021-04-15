@@ -199,12 +199,14 @@ def print_module_summary(module, inputs, max_nesting=3, skip_redundant=True):
     nesting = [0]
     def pre_hook(_mod, _inputs):
         nesting[0] += 1
-    def post_hook(mod, _inputs, outputs):
+    def post_hook(mod, module_inputs, outputs):
         nesting[0] -= 1
         if nesting[0] <= max_nesting:
+            module_inputs = list(module_inputs) if isinstance(module_inputs, (tuple, list)) else [module_inputs]
+            module_inputs = [t for t in module_inputs if isinstance(t, torch.Tensor)]
             outputs = list(outputs) if isinstance(outputs, (tuple, list)) else [outputs]
             outputs = [t for t in outputs if isinstance(t, torch.Tensor)]
-            entries.append(dnnlib.EasyDict(mod=mod, outputs=outputs))
+            entries.append(dnnlib.EasyDict(mod=mod, inputs=module_inputs, outputs=outputs))
     hooks = [mod.register_forward_pre_hook(pre_hook) for mod in module.modules()]
     hooks += [mod.register_forward_hook(post_hook) for mod in module.modules()]
 
@@ -226,7 +228,7 @@ def print_module_summary(module, inputs, max_nesting=3, skip_redundant=True):
         entries = [e for e in entries if len(e.unique_params) or len(e.unique_buffers) or len(e.unique_outputs)]
 
     # Construct table.
-    rows = [[type(module).__name__, 'Parameters', 'Buffers', 'Output shape', 'Datatype']]
+    rows = [[type(module).__name__, 'Parameters', 'Buffers', 'Input Shape', 'Output shape', 'Datatype']]
     rows += [['---'] * len(rows[0])]
     param_total = 0
     buffer_total = 0
@@ -235,21 +237,25 @@ def print_module_summary(module, inputs, max_nesting=3, skip_redundant=True):
         name = '<top-level>' if e.mod is module else submodule_names[e.mod]
         param_size = sum(t.numel() for t in e.unique_params)
         buffer_size = sum(t.numel() for t in e.unique_buffers)
-        output_shapes = [str(list(e.outputs[0].shape)) for t in e.outputs]
+        input_shape_str = ' + '.join([str(list(t.shape)) for t in e.inputs])
+        output_shapes = [str(list(t.shape)) for t in e.outputs]
         output_dtypes = [str(t.dtype).split('.')[-1] for t in e.outputs]
         rows += [[
             name + (':0' if len(e.outputs) >= 2 else ''),
             str(param_size) if param_size else '-',
             str(buffer_size) if buffer_size else '-',
+            input_shape_str if len(input_shape_str) > 0 else '-',
             (output_shapes + ['-'])[0],
             (output_dtypes + ['-'])[0],
         ]]
         for idx in range(1, len(e.outputs)):
-            rows += [[name + f':{idx}', '-', '-', output_shapes[idx], output_dtypes[idx]]]
+            rows += [[name + f':{idx}', '-', '-', '-', output_shapes[idx], output_dtypes[idx]]]
         param_total += param_size
         buffer_total += buffer_size
     rows += [['---'] * len(rows[0])]
-    rows += [['Total', str(param_total), str(buffer_total), '-', '-']]
+    rows += [['Total', str(param_total), str(buffer_total), '-', '-', '-']]
+    row_lengths = [len(r) for r in rows]
+    assert len(set(row_lengths)) == 1, f"Summary table contains rows of different lengths: {row_lengths}"
 
     # Print table.
     widths = [max(len(cell) for cell in column) for column in zip(*rows)]

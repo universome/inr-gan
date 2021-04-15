@@ -1,6 +1,9 @@
 generator:
+  fp32: true
   upsampling_mode: ~
   use_noise: true
+  mapping_net_n_layers: 2 # to make the comparison fair (also, this does not influence things much)
+  fmaps: 1
 
   input:
     type: "const"
@@ -11,3 +14,5 @@ generator:
 
 loss_kwargs:
   r1_gamma: 10.0
+
+discriminator: {fmaps: 1}
