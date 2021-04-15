@@ -1,0 +1,26 @@
+# @package _group_
+
+resolution: 128
+
+train: ${datasets.test}
+val: ${datasets.test}
+test:
+  - dataset_name: train
+    inception_real_stats_path: ${hydra:runtime.cwd}/inception_stats/mini_imagenet_${datasets.resolution}.npz
+    dataset_class:
+      _target_: dinr.utils.image_folder.ImageFolder
+      root: ${hydra:runtime.cwd}/data/imagenet/mini-imagenet-128
+      transform: ${datasets._transform}
+
+_transform:
+  _target_: torchvision.transforms.Compose
+  transforms:
+    - _target_: torchvision.transforms.Resize
+      size: ${datasets.resolution}
+      interpolation: 1 # PIL.Image.LANCZOS
+    - _target_: torchvision.transforms.CenterCrop
+      size: ${datasets.resolution}
+    - _target_: torchvision.transforms.ToTensor
+    - _target_: torchvision.transforms.Normalize
+      mean: [0.5, 0.5, 0.5]
+      std: [0.5, 0.5, 0.5]

@@ -1,0 +1,12 @@
+# @package _group_
+
+task_class:
+  _target_: dinr.modeling.StyleGAN2
+
+r1: 10.0
+path_regularize: 2.0
+path_batch_shrink: 2
+d_reg_every: 16
+g_reg_every: 0
+mixing: 0.0
+latent: ${model.generator.style_dim}

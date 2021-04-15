@@ -1,0 +1,30 @@
+# @package _group_
+
+generator:
+  _target_: dinr.modeling.MSINRGenerator
+  fallback: false
+  size: ${datasets.resolution}
+  style_dim: 512
+  n_mlp: 8
+  channel_multiplier: 2
+  blur_kernel: [1, 3, 3, 1]
+  lr_mlp: 0.01
+  transform_type: "linear" # One of ["conv", "linear"]
+  modulation_type: "fmm_sg2" # One of ["fmm_inrgan", "fmm_sg2", "sg2"]. Works only for transform_type=linear
+  is_multiscale: true
+  interpolation_type: "bilinear"
+  factorization_rank: 5
+  fourier_scale: 3.16 # sqrt(10)
+  # fourier_scale: 10.0
+  coord_fuse_type: "concat"
+  multi_scale_coord_embs: true
+  use_noise_injection: true
+  coord_emb_dim_multiplier: 0.25
+  linear_conv_block: false
+  no_fourier_embs: false
+
+discriminator:
+  _target_: dinr.modeling.Discriminator
+  size: ${datasets.resolution}
+  channel_multiplier: 2
+  blur_kernel: [1, 3, 3, 1]

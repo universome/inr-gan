@@ -1,0 +1,21 @@
+# @package _group_
+
+generator:
+  _target_: dinr.modeling.MSINRGenerator
+  fallback: true
+  size: ${datasets.resolution}
+  style_dim: 512
+  n_mlp: 8
+  channel_multiplier: 2
+  blur_kernel: [1, 3, 3, 1]
+  lr_mlp: 0.01
+  transform_type: "conv"
+  is_multiscale: false
+  interpolation_type: ~
+  factorization_rank: ~
+
+discriminator:
+  _target_: dinr.modeling.Discriminator
+  size: ${datasets.resolution}
+  channel_multiplier: 2
+  blur_kernel: [1, 3, 3, 1]

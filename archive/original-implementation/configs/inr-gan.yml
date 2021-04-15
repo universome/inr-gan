@@ -1,0 +1,296 @@
+trainer: "GANTrainer"
+random_seed: 42
+exp_name: "inr_gan"
+dataset: "ffhq_thumbs"
+model_type: "inr_gan"
+exp_series_dir: "/ibex/scratch/skoroki/meta-generation/experiments/unsorted"
+checkpoint:
+  freq_iters: 10000
+  separate_checkpoints: true
+  modules: ["model", "gen_ema", "discriminator_optim", "generator_optim"]
+distributed_training:
+  enabled: false
+  dist_optim_kwargs: {}
+  # dist_optim_kwargs: {backward_passes_per_step: 1} # See https://github.com/horovod/horovod/issues/1549
+logging:
+  freqs:
+    activations: -1
+    grads: -1
+    weights: -1
+    images: 100
+    interpolations: -1
+    weights_interpolations: 1000
+    upsampled_images: -1
+    fid: 2000
+    fid_upsampled: -1
+  scale_factors: [2]
+  decomposed_fid: false
+  log_imgs_batch_size: 8
+  initial_freq_log_iter: # Till what iteration should we log the proprty on EACH iter
+    activations: -1
+  num_hist_values_to_log: 5000
+  num_imgs_to_display: 128
+fid:
+  num_real_images: 8192
+  num_fake_images: 8192
+  dims: 2048
+  batch_size: 8
+hp:
+  max_num_epochs: 10000
+  gan_loss_type: "standard" # One of ["standard", "wgan"]
+  grad_accum_steps: 1
+
+  test_time_noise_correction:
+    enabled: false
+    type: "truncated" # one of ["projected", "truncated"]
+    kwargs: {truncation_factor: 2.0}
+
+  progressive_transform:
+    enabled: false
+    initial_min_scale: 1.0
+    target_min_scale: 0.5
+    num_iterations: 25000
+    update_freq: 100
+
+  num_discr_steps_per_gen_step: 1
+  grad_penalty:
+    type: "r1" # one of ["r1", "wgan-gp", "none"]
+    weight: 10.0
+
+  fid_loss:
+    enabled: false
+    loss_coef: 0.1
+    num_approx_iters: 5
+
+  generator:
+    type: "simple"
+    dist: "normal"
+    hid_dim: 1024
+    z_dim: 512
+    num_layers: 3
+    class_emb_dim: 512
+    connector_bias_zero_init: true
+    connector_additional_scale: 1.0
+    layer:
+      equalized_lr: false
+      residual: true # TODO: if enabled with scaled_leaky_relu, reduce scaled_leaky_relu scale
+      main_branch_weight: 0.1
+      activation: "relu"
+      activation_kwargs: {}
+      # activation_kwargs: {negative_slope: 0.01, scale: 1.0}
+      has_bn: false
+    output_activation: "none"
+    size_sampler:
+      pos_emb_dim: 512
+      stats_path: "data/imagenet/sizes.npy"
+    resize_strategy: "crop"
+
+  gen_ema:
+    enabled: true
+    ema_coef: 0.999
+
+  discriminator:
+    type: "stylegan2" # one of ["nrgan", "gan_stability", "stylegan2"]
+    blur_kernel: [1, 3, 3, 1]
+    channel_multiplier: 1 # one of [1, 2] (2 - for config F)
+    # type: "nrgan" # one of ["nrgan", "gan_stability", "stylegan2"]
+    # dim: 64
+    # n_layers: 4
+    # main_branch_weight: 0.1
+    # use_spectral_norm: false
+
+  cyclic_scheduler: {enabled: false}
+
+  inr:
+    type: "hier_fourier_inr"
+    num_blocks: 2
+    upsample_block_idx: 1
+    resolutions_params:
+      4: {resolution: 4, dim: 512, max_num_fixed_coord_feats: 0, num_learnable_coord_feats: 64, fourier_scale: 10.0, n_layers: 2, to_rgb: false}
+      8: {resolution: 8, dim: 512, max_num_fixed_coord_feats: 0, num_learnable_coord_feats: 64, fourier_scale: 10.0, n_layers: 2, to_rgb: false}
+      16: {resolution: 16, dim: 512, max_num_fixed_coord_feats: 0, num_learnable_coord_feats: 256, fourier_scale: 10.0, n_layers: 2, to_rgb: false}
+      32: {resolution: 32, dim: 512, max_num_fixed_coord_feats: 0, num_learnable_coord_feats: 256, fourier_scale: 10.0, n_layers: 2, to_rgb: false}
+      64: {resolution: 64, dim: 512, max_num_fixed_coord_feats: 0, num_learnable_coord_feats: 256, fourier_scale: 10.0, n_layers: 3, to_rgb: false}
+      128: {resolution: 128, dim: 512, max_num_fixed_coord_feats: 0, num_learnable_coord_feats: 256, fourier_scale: 10.0, n_layers: 4, to_rgb: true}
+      256: {resolution: 256, dim: 256, max_num_fixed_coord_feats: 0, num_learnable_coord_feats: 128, fourier_scale: 10.0, n_layers: 4, to_rgb: true}
+      512: {resolution: 512, dim: 64, max_num_fixed_coord_feats: 0, num_learnable_coord_feats: 32, fourier_scale: 10.0, n_layers: 2, use_diag_feats: false, to_rgb: true}
+      1024: {resolution: 1024, dim: 32, max_num_fixed_coord_feats: 0, num_learnable_coord_feats: 8, fourier_scale: 10.0, n_layers: 2, use_diag_feats: false, to_rgb: true}
+
+    coord_dim: 2 # We have just (x,y) coords
+    additionaly_scale_to_rgb: true
+    has_bias: true
+    use_pixel_norm: false
+    skip_coords: true
+    use_noise: false
+    res_increase_scheme: {enabled: false}
+    activation: "relu"
+    upsampling_mode: "nearest"
+    activation_kwargs: {}
+    # activation_kwargs: {negative_slope: 0.01, scale: 1.0}
+    hid_layer_type: "se_factorized"
+    coords_layer_type: "linear"
+    to_rgb_activation: "none"
+    output_activation: "tanh"
+    avg_output: false
+    bias_hid_layer_std_scale: 0.2
+    bias_coords_layer_std_scale: 0.2
+    input_coord_range_lhs: 0
+    module_kwargs:
+      factorized: {rank: 10}
+      se_factorized: {rank: 10, equalized_lr: false}
+      mm_se_factorized: {rank: 5, num_modes: 1, temperature: 0.05}
+      mm_shared_linear: {num_modes: 1000}
+
+  # grad_clipping:
+  #   generator: 1000
+
+  gen_optim:
+    type: "adam"
+    groups:
+      size_sampler: {lr: 0.00005, betas: [0.0, 0.98]}
+      class_embedder: {lr: 0.00005, betas: [0.0, 0.98]}
+      mapping_network: {lr: 0.00005, betas: [0.0, 0.98]}
+      connector: {lr: 0.00005, betas: [0.0, 0.98]}
+      inr: {lr: 0.0005, betas: [0.0, 0.98]}
+    kwargs: {}
+
+  discr_optim:
+    type: "adam"
+    kwargs: {lr: 0.003, betas: [0.0, 0.98]}
+
+data:
+  target_img_size: 32
+  num_img_channels: 1
+  dir: "data/mnist"
+  name: "mnist"
+  num_classes: 10
+  is_variable_sized: false
+  is_conditional: false
+
+  concat_patches:
+    enabled: false
+    ratio: 0.5
+    axis: "channel"
+
+datasets:
+  mnist:
+    data:
+      name: "mnist"
+      target_img_size: 32
+      num_img_channels: 1
+      dir: "data/mnist"
+    hp:
+      batch_size: 512
+      discriminator: {dim: 16}
+      generator: {z_dim: 128, num_layers: 2}
+      inr:
+        layer_sizes: [32, 32, 32]
+
+  lsun_bedroom: &lsun_bedroom
+    data:
+      name: "lsun_bedroom"
+      target_img_size: 128
+      num_img_channels: 3
+      dir: "data/lsun/bedroom_train_lmdb"
+    hp:
+      batch_size: 32
+
+  lsun_cat:
+    data:
+      name: "lsun_cat"
+      target_img_size: 256
+      num_img_channels: 3
+      dir: "data/lsun/cat_train_lmdb"
+    hp:
+      batch_size: 16
+
+  lsun_conference_room:
+    data:
+      name: "lsun_conference_room"
+      target_img_size: 64
+      num_img_channels: 3
+      dir: "data/lsun/conference_room_train_lmdb"
+    hp:
+      batch_size: 32
+
+  lsun_church_outdoor: &lsun_church_outdoor
+    data:
+      name: "lsun_church_outdoor"
+      target_img_size: 256
+      num_img_channels: 3
+      dir: "data/lsun/churches_outdoor_train_lmdb"
+    hp:
+      batch_size: 16
+
+  ffhq_thumbs:
+    data:
+      name: "ffhq_thumbs"
+      dir: "data/ffhq/thumbnails128x128"
+      target_img_size: 128
+      num_img_channels: 3
+    hp:
+      batch_size: 32
+
+  ffhq_256:
+    data:
+      name: "ffhq_256"
+      dir: "data/ffhq/ffhq_256"
+      target_img_size: 256
+      num_img_channels: 3
+    hp:
+      batch_size: 16
+
+  ffhq_1024:
+    data:
+      name: "ffhq_1024"
+      dir: "data/ffhq/ffhq_1024"
+      target_img_size: 1024
+      num_img_channels: 3
+    logging: &ffhq_1024_logging_params
+      freqs:
+        images: 250
+        fid: -1
+      num_imgs_to_display: 32
+    hp: &ffhq_1024_hp_params
+      batch_size: 8
+      inr:
+        num_blocks: 4
+        upsample_block_idx: 4
+        resolutions_params:
+          128: {to_rgb: true}
+          256: {dim: 256, num_learnable_coord_feats: 128, to_rgb: true}
+          512: {n_layers: 2, to_rgb: true}
+          1024: {use_diag_feats: false, n_layers: 1, to_rgb: true}
+
+  celeba_1024:
+    data:
+      name: "celeba_1024"
+      dir: "data/celeba/celeba_1024"
+      target_img_size: 1024
+      num_img_channels: 3
+    logging: *ffhq_1024_logging_params
+    hp: *ffhq_1024_hp_params
+
+  celeba_thumbs:
+    data:
+      name: "celeba_thumbs"
+      dir: "data/celeba/thumbnails128x128"
+      target_img_size: 128
+      num_img_channels: 3
+    hp:
+      batch_size: 32
+
+  imagenet_vs:
+    data:
+      name: "imagenet_vs"
+      dir: "data/imagenet/imagenet-vs-128"
+      target_img_size: 128
+      num_img_channels: 3
+      num_classes: 1000
+      is_conditional: true
+      is_variable_sized: true
+    hp:
+      batch_size: 32
+      grad_penalty:
+        type: "r1" # one of ["r1", "wgan-gp", "none"]
+        weight: 10.0

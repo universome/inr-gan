@@ -1,0 +1,20 @@
+# @package _group_
+
+total_batch_size: 32
+
+train:
+  sampler: ~
+  total_batch_size: ${dataloader.total_batch_size}
+  num_workers: 3
+  shuffle: true
+  pin_memory: false
+val:
+  sampler: ~
+  total_batch_size: ${dataloader.total_batch_size}
+  num_workers: 3
+  pin_memory: false
+test:
+  sampler: ~
+  total_batch_size: ${dataloader.total_batch_size}
+  num_workers: 3
+  pin_memory: false

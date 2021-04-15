@@ -1,0 +1,71 @@
+trainer: "GANTrainer"
+random_seed: 42
+dataset: "lsun_bedroom"
+exp_name: "normal_gan"
+exp_series_dir: "/ibex/scratch/skoroki/meta-generation/experiments/unsorted"
+logging:
+  freqs:
+    activations: -1
+    images: 1000
+    fid: 10000
+    grads: 500
+    weights: 500
+  num_hist_values_to_log: 5000
+  num_imgs_to_display: 128
+fid:
+  num_real_images: 8192
+  num_fake_images: 8192
+  dims: 2048
+  batch_size: 32
+model_type: "resnet_gan"
+hp:
+  batch_size: 64
+  max_num_epochs: 50
+  num_discr_steps_per_gen_step: 1
+  gan_loss_type: "standard" # One of ["standard", "wgan"]
+
+  test_time_noise_correction:
+    enabled: false
+    type: "truncated" # one of ["projected", "truncated"]
+    kwargs: {truncation_factor: 2.0}
+
+  generator:
+    s0: 4
+    z_dim: 256
+    nfilter: 64
+    nfilter_max: 1024
+
+  discriminator:
+    s0: 4
+    nfilter: 64
+    nfilter_max: 1024
+
+  grad_penalty:
+    type: "r1" # "r1" vs "wgan-gp"
+    weight: 10.0
+
+  gen_ema:
+    enabled: true
+    ema_coef: 0.999
+
+  gen_optim:
+    type: "rms_prop"
+    kwargs: {lr: 0.0001}
+
+  discr_optim:
+    type: "rms_prop"
+    kwargs: {lr: 0.0001}
+
+datasets:
+  lsun_bedroom:
+    data:
+      dir: "/tmp/skoroki/datasets/lsun/bedroom_train_lmdb"
+      name: "lsun_bedroom"
+      target_img_size: 256
+      num_img_channels: 3
+  lsun_conference_room:
+    data:
+      dir: "/tmp/skoroki/datasets/lsun/conference_room_train_lmdb"
+      name: "lsun_conference_room"
+      target_img_size: 256
+      num_img_channels: 3

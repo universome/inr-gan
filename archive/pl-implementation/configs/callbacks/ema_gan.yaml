@@ -1,0 +1,41 @@
+# @package _group_
+
+fit:
+  - _target_: dinr.utils.callbacks.FitDurationCallback
+  - _target_: dinr.utils.callbacks.EMAWeightUpdate
+    online_model_name: generator
+    target_model_name: generator_ema
+    update_tau: false
+    initial_tau: 0.9977843871238888 # https://github.com/rosinality/stylegan2-pytorch/blob/master/train.py#L150
+  - _target_: dinr.utils.callbacks.GenerativeModelImageSampler
+    num_samples: 25
+    nrow: 5
+    period_steps: 1500
+  - _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    monitor: 'FID/train'
+    verbose: false
+    save_last: true
+    save_top_k: 3
+    mode: min
+    period: 1
+  - _target_: dinr.utils.callbacks.PlotFourierSpectrum
+    period_steps: ${trainer.val_check_interval}
+  - _target_: dinr.utils.callbacks.CheckpointEveryNSteps
+    save_step_frequency: ${trainer.val_check_interval}
+  - _target_: dinr.utils.callbacks.CheckpointAtImageNum
+    image_nums:
+      - 3000000
+      - 4800000  # ffhq ablation
+      - 6000000
+      - 10000000  # small
+      - 25000000  # ffhq
+      - 48000000  # lsun-church
+      - 57000000  # lsun-car
+      - 88000000  # lsun-cat
+      - 100000000  # lsun-horse
+    batch_size: ${dataloader.train.total_batch_size}
+
+test:
+  - _target_: dinr.utils.callbacks.GenerativeModelImageSamplerTest
+    num_samples: 25
+    nrow: 5

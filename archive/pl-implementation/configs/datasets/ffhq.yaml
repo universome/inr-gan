@@ -1,0 +1,24 @@
+# @package _group_
+
+resolution: 256
+
+train: ${datasets.test}
+val: ${datasets.test}
+test:
+  - dataset_name: train
+    inception_real_stats_path: ${hydra:runtime.cwd}/inception_stats/ffhq_${datasets.resolution}.npz
+    dataset_class:
+      _target_: dinr.utils.plain_image_dataset.PlainImageDataset
+      root: ${hydra:runtime.cwd}/data/ffhq/ffhq_${datasets.resolution}
+      transform: ${datasets._transform}
+
+_transform:
+  _target_: torchvision.transforms.Compose
+  transforms:
+    - _target_: torchvision.transforms.Resize
+      size: ${datasets.resolution}
+      interpolation: 1 # PIL.Image.LANCZOS
+    - _target_: torchvision.transforms.ToTensor
+    - _target_: torchvision.transforms.Normalize
+      mean: [0.5, 0.5, 0.5]
+      std: [0.5, 0.5, 0.5]

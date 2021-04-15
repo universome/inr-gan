@@ -1,0 +1,28 @@
+name: null
+
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+
+dependencies:
+  - cmake=3.17
+  - cudatoolkit=10.1
+  - cudnn=7.6
+  - cupti=10.1
+  - cxx-compiler=1.1
+  - jupyterlab=2.2
+  - mpi4py=3.0 # installs cuda-aware openmpi
+  - nccl=2.5
+  - nvcc_linux-64=10.1
+  - tqdm=4.48.2
+  - opencv=3.4.2
+  - matplotlib=3.3.1
+  - scipy=1.5.2
+  - lmdb=0.9.23
+  - pip=20.1
+  - pip:
+    - -r file:requirements.txt
+  - python=3.7
+  - pytorch=1.5
+  - torchvision=0.6

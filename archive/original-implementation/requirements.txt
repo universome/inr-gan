@@ -1,0 +1,6 @@
+gpustat==0.6.0
+lmdb==1.0.0
+horovod==0.19.*
+tb-nightly==2.4
+# make sure horovod is re-compiled if environment is re-built
+--no-binary=horovod

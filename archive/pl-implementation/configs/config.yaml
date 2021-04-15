@@ -1,0 +1,25 @@
+defaults:
+  - callbacks: ema_gan
+  - dataloader: iterable
+  - datasets: lsun
+  - loggers: test_tube
+  - model: stylegan2_default
+  - optim: adam_gd
+  - system: stylegan2
+  - trainer: project
+
+lpips:
+  num_samples: 128
+  freq_iters: 60000 # Since it is very slow
+
+fid:
+  num_samples: 50000
+  batch_size: 5
+  truncation: 1.0
+  num_latents_for_trunc_proto: 2048
+
+eval_only: false
+# if eval_only = true: test_weights must be the path to weights
+# otherwise use `null` if you want to use the last checkpoint after training or `best` to choose the checkpoint
+# performing best on the validation set
+test_weights: best

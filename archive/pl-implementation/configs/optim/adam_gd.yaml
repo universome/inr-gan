@@ -1,0 +1,25 @@
+# @package _group_
+
+generator:
+  weight_decay: 0
+  weight_decay_norm: 0
+  optimizer:
+    _target_: torch.optim.Adam
+    betas: [0.0, 0.99]
+    lr: 2e-3
+    eps: 1e-8
+    amsgrad: false
+  overrides: ~
+  scheduler: ~
+
+discriminator:
+  weight_decay: 0
+  weight_decay_norm: 0
+  optimizer:
+    _target_: torch.optim.Adam
+    betas: [0.0, 0.99]
+    lr: 2e-3
+    eps: 1e-8
+    amsgrad: false
+  overrides: ~
+  scheduler: ~
