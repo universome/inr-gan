@@ -1,6 +1,7 @@
 ## Adversarial Generation of Continuous Images [CVPR 2021]
 
-This repo contains [INR-GAN](https://arxiv.org/abs/2011.12026) implementation built on top of [StyleGAN2-ADA](https://github.com/NVlabs/stylegan2-ada-pytorch) repo.
+This repo contains [INR-GAN](https://arxiv.org/abs/2011.12026) implementation built on top of the [StyleGAN2-ADA](https://github.com/NVlabs/stylegan2-ada-pytorch) repo.
+Compared to a traditional convolutional generator, ours is [INR](https://vsitzmann.github.io/siren/)-based, i.e. it produces parameters for a fully-connected neural network which generates pixel values independently based on their coordinate positions (see the illustration below).
 
 <div style="text-align:center">
 <img src="assets/inr-gan.jpg" alt="INR-GAN illustration" width="500"/>
@@ -9,11 +10,11 @@ This repo contains [INR-GAN](https://arxiv.org/abs/2011.12026) implementation bu
 ### Performance
 FID scores for the model (with the default nearest neighbour interpolation, i.e. all pixels are generated completely independently) compared to other baselines are presented in the table below.
 
-| Model       | LSUN Churches 256x256 | FFHQ 256x256 | #imgs/sec on V100 32gb | Memory usage             |
-| ----------- | --------------------- | ------------ | ---------------------- | ------------------------ |
-| INR-GAN     | 4.45                  | 12.46        | 301.69 @ batch_size=50 | 23.54 Gb @ batch_size=50 |
-| StyleGAN2   | 3.86                  | 3.83         | 95.79 @ batch_size=32  | 3.65 Gb @ batch_size=32  |
-| CIPS        | 2.92                  | 4.38         | 27.27 @ batch_size=16  | 8.11 Gb @ batch_size=16  |
+| Model       | LSUN Churches 256x256 | LSUN Bedroom 256x256 | FFHQ 256x256 | #imgs/sec on V100 32gb | Memory usage             |
+| ----------- | --------------------- | -------------------- | ------------ | ---------------------- | ------------------------ |
+| INR-GAN     | 4.45                  | 5.71                 | 9.57         | 266.45 @ batch_size=50 | 23.54 Gb @ batch_size=50 |
+| StyleGAN2   | 3.86                  | 2.65                 | 3.83         | 95.79 @ batch_size=32  | 3.65 Gb @ batch_size=32  |
+| CIPS        | 2.92                  | -                    | 4.38         | 27.27 @ batch_size=16  | 8.11 Gb @ batch_size=16  |
 
 The inference speed in terms of #imgs/sec was measured on a single NVidia V100 GPU (32 Gb) *without* using the mixed precision (see the #Profiling section below).
 The FID performance can be improved by using bilinear interpolation, but this deviates from the INR "paradigm" and makes the generation slower.
@@ -46,9 +47,10 @@ This is needed to isolate the code which produces the model.
 ### Pretrained checkpoints
 We provide checkpoints for the following datasets:
 - [LSUN Churches 256x256](https://vision-cair.s3.amazonaws.com/inr-gan/checkpoints/churches.pkl) with FID = 4.45.
-- [LSUN Bedrooms 256x256](https://vision-cair.s3.amazonaws.com/inr-gan/checkpoints/bedrooms.pkl) with FID = 5.71 (setting truncation to 0.9 is crucial for it). For this dataset, we used an additional convolution on top of 128x128 and 256x256 layers and that's why its throughput dropped from 301.69 to 266.45. We also trained this checkpoint with a "half-sized" discriminator (fmaps=0.5), so the quality for it can be improved by training with a larger discriminator.
-- [FFHQ 256x256](https://vision-cair.s3.amazonaws.com/inr-gan/checkpoints/ffhq.pkl) with FID = 12.46 (setting truncation to 0.9 improved FID by 0.3). The quality for it can be improved (at the expense of speed) by using additional convolutions for higher-resolution blocks as for LSUN Bedrooms.
+- [LSUN Bedrooms 256x256](https://vision-cair.s3.amazonaws.com/inr-gan/checkpoints/bedrooms.pkl) with FID = 5.71 (setting truncation to 0.9 is crucial for it).
+- [FFHQ 256x256](https://vision-cair.s3.amazonaws.com/inr-gan/checkpoints/ffhq.pkl) with FID = 9.57.
 
+For Churches, the model works well without additional convolutions on top of 128x128 and 256x256 blocks, that's why we do not use them for this dataset (i.e. `extra_convs: {}` in the `inr-gan.yml` config) which makes it run in 301.69 imgs/second.
 We believe that the reason why it works better on Churches compared to other datasets is that this dataset contains more high-frequency details.
 
 ### Data format
@@ -81,19 +83,17 @@ This repo is built on top of [StyleGAN2-ADA](https://github.com/NVlabs/stylegan2
 
 ### Bibtex
 ```
-@misc{inr_gan,
-      title={Adversarial Generation of Continuous Images},
-      author={Ivan Skorokhodov and Savva Ignatyev and Mohamed Elhoseiny},
-      year={2020},
-      eprint={2011.12026},
-      archivePrefix={arXiv},
-      primaryClass={cs.CV}
+@article{inr_gan,
+    title={Adversarial Generation of Continuous Images},
+    author={Ivan Skorokhodov and Savva Ignatyev and Mohamed Elhoseiny},
+    journal={arXiv preprint arXiv:2011.12026},
+    year={2020}
 }
 
 @article{cips,
-  title={Image Generators with Conditionally-Independent Pixel Synthesis},
-  author={Anokhin, Ivan and Demochkin, Kirill and Khakhulin, Taras and Sterkin, Gleb and Lempitsky, Victor and Korzhenkov, Denis},
-  journal={arXiv preprint arXiv:2011.13775},
-  year={2020}
+    title={Image Generators with Conditionally-Independent Pixel Synthesis},
+    author={Anokhin, Ivan and Demochkin, Kirill and Khakhulin, Taras and Sterkin, Gleb and Lempitsky, Victor and Korzhenkov, Denis},
+    journal={arXiv preprint arXiv:2011.13775},
+    year={2020}
 }
 ```

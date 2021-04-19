@@ -3,7 +3,7 @@ generator:
   upsampling_mode: nearest
   use_noise: false
   fmaps: 1
-  #num_extra_convs: {"128": 1, "256": 1}
+  num_extra_convs: {"128": 1, "256": 1}
 
   input:
     type: "coords"
