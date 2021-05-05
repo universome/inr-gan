@@ -46,9 +46,9 @@ This is needed to isolate the code which produces the model.
 
 ### Pretrained checkpoints
 We provide checkpoints for the following datasets:
-- [LSUN Churches 256x256](https://vision-cair.s3.amazonaws.com/inr-gan/checkpoints/churches.pkl) with FID = 4.45.
-- [LSUN Bedrooms 256x256](https://vision-cair.s3.amazonaws.com/inr-gan/checkpoints/bedrooms.pkl) with FID = 5.71 (setting truncation to 0.9 is crucial for it).
-- [FFHQ 256x256](https://vision-cair.s3.amazonaws.com/inr-gan/checkpoints/ffhq.pkl) with FID = 9.57.
+- [LSUN Churches 256x256](https://kaust-cair.s3.amazonaws.com/inr-gan/checkpoints/churches.pkl) with FID = 4.45.
+- [LSUN Bedrooms 256x256](https://kaust-cair.s3.amazonaws.com/inr-gan/checkpoints/bedrooms.pkl) with FID = 5.71 (setting truncation to 0.9 is crucial for it).
+- [FFHQ 256x256](https://kaust-cair.s3.amazonaws.com/inr-gan/checkpoints/ffhq.pkl) with FID = 9.57.
 
 For Churches, the model works well without additional convolutions on top of 128x128 and 256x256 blocks, that's why we do not use them for this dataset (i.e. `extra_convs: {}` in the `inr-gan.yml` config) which makes it run in 301.69 imgs/second.
 We believe that the reason why it works better on Churches compared to other datasets is that this dataset contains more high-frequency details.
@@ -58,9 +58,9 @@ We use the same data format as the original [StyleGAN2-ADA](https://github.com/N
 It is assumed that all data is located in a single directory, specified in `configs/main.yml`.
 
 For completeness, we also provide downloadable links to the datasets:
-- [LSUN Churches 256x256](https://vision-cair.s3.amazonaws.com/inr-gan/datasets/church_outdoor_train_256.zip) of size 1.8 GiB. The original source is [https://www.yf.io/p/lsun](https://www.yf.io/p/lsun).
-- [LSUN Bedroom 256x256](https://vision-cair.s3.amazonaws.com/inr-gan/datasets/bedroom_train_256.zip) of size 32.8 GiB. The original source is [https://www.yf.io/p/lsun](https://www.yf.io/p/lsun).
-- [FFHQ 256x256](https://vision-cair.s3.amazonaws.com/inr-gan/datasets/ffhq_256.zip) of size 6.5 GiB. The original source is [https://github.com/NVlabs/ffhq-dataset](https://github.com/NVlabs/ffhq-dataset).
+- [LSUN Churches 256x256](https://kaust-cair.s3.amazonaws.com/inr-gan/datasets/church_outdoor_train_256.zip) of size 1.8 GiB. The original source is [https://www.yf.io/p/lsun](https://www.yf.io/p/lsun).
+- [LSUN Bedroom 256x256](https://kaust-cair.s3.amazonaws.com/inr-gan/datasets/bedroom_train_256.zip) of size 32.8 GiB. The original source is [https://www.yf.io/p/lsun](https://www.yf.io/p/lsun).
+- [FFHQ 256x256](https://kaust-cair.s3.amazonaws.com/inr-gan/datasets/ffhq_256.zip) of size 6.5 GiB. The original source is [https://github.com/NVlabs/ffhq-dataset](https://github.com/NVlabs/ffhq-dataset).
 
 Download the datasets and put them into `data/` directory.
 
