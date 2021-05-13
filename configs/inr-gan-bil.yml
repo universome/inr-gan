@@ -1,0 +1,50 @@
+generator:
+  fp32: true
+  upsampling_mode: bilinear
+  use_noise: false
+  fmaps: 1
+  num_extra_convs: {"128": 1, "256": 1}
+
+  input:
+    type: "coords"
+    resolution: 32
+    coord_fuser_cfg: ${coords}
+
+  coords:
+    enabled: true
+    per_resolution: true
+    kernel_size: 1
+    coord_dim: 2
+    fallback: false
+    use_full_cache: false
+    low_res_cfg:
+      log_emb_size: 64
+      const_emb_size: 128
+      use_cosine: true
+      use_diagonal: true
+    medium_res_cfg:
+      log_emb_size: 32
+      random_emb_size: 32
+      const_emb_size: 64
+      use_cosine: true
+    res_configs:
+      "4": ${coords.low_res_cfg}
+      "8": ${coords.low_res_cfg}
+      "16": ${coords.low_res_cfg}
+      "32": ${coords.low_res_cfg}
+      "64": ${coords.low_res_cfg}
+      "128": ${coords.medium_res_cfg}
+      "256": ${coords.medium_res_cfg}
+
+  fmm:
+    enabled: true
+    rank: 10
+    activation: demod
+    instance_norm: true
+
+loss_kwargs:
+  r1_gamma: 10.0
+  pl_weight: 0
+  style_mixing_prob: 0.0
+
+discriminator: {fmaps: 1}

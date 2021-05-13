@@ -20,7 +20,7 @@ from src import dnnlib
 def instantiate_G(cfg: DictConfig) -> nn.Module:
     hydra_cfg = compose(config_name=f'../../configs/{cfg.model}.yml')
 
-    if cfg.model in ['inr-gan', 'cips']:
+    if cfg.model in ['inr-gan', 'inr-gan-bil', 'cips']:
         hydra_cfg.generator.coords.use_full_cache = True
 
     G_kwargs = dnnlib.EasyDict(class_name='training.networks.Generator', z_dim=512, w_dim=512, mapping_kwargs=dnnlib.EasyDict(), synthesis_kwargs=dnnlib.EasyDict())

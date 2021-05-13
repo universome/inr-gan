@@ -8,17 +8,21 @@ Compared to a traditional convolutional generator, ours is [INR](https://vsitzma
 </div>
 
 ### Performance
-FID scores for the model (with the default nearest neighbour interpolation, i.e. all pixels are generated completely independently) compared to other baselines are presented in the table below.
+We provide the checkpoints of our model with the following FID scores.
+See [Pretrained checkpoints](#pretrained-checkpoints) to download them.
 
-| Model       | LSUN Churches 256x256 | LSUN Bedroom 256x256 | FFHQ 256x256 | #imgs/sec on V100 32gb | Memory usage             |
-| ----------- | --------------------- | -------------------- | ------------ | ---------------------- | ------------------------ |
-| INR-GAN     | 4.45                  | 5.71                 | 9.57         | 266.45 @ batch_size=50 | 23.54 Gb @ batch_size=50 |
-| StyleGAN2   | 3.86                  | 2.65                 | 3.83         | 95.79 @ batch_size=32  | 3.65 Gb @ batch_size=32  |
-| CIPS        | 2.92                  | -                    | 4.38         | 27.27 @ batch_size=16  | 8.11 Gb @ batch_size=16  |
+| Model        | LSUN Churches 256x256 | LSUN Bedroom 256x256 | FFHQ 256x256 | #imgs/sec on V100 32gb | Memory usage             |
+| ------------ |:---------------------:|:--------------------:|:------------:|:----------------------:|:------------------------:|
+| INR-GAN      | 4.45                  | 5.71                 | 9.57         | 266.45 @ batch_size=50 | 23.54 Gb @ batch_size=50 |
+| INR-GAN-bil* | 4.04                  | 3.43                 | 4.95         | 209.16 @ batch_size=50 | 23.56 Gb @ batch_size=50 |
+| StyleGAN2    | 3.86                  | 2.65                 | 3.83         | 95.79 @ batch_size=32  | 3.65 Gb @ batch_size=32  |
+| CIPS         | 2.92                  | -                    | 4.38         | 27.27 @ batch_size=16  | 8.11 Gb @ batch_size=16  |
 
-The inference speed in terms of #imgs/sec was measured on a single NVidia V100 GPU (32 Gb) *without* using the mixed precision (see the #Profiling section below).
-The FID performance can be improved by using bilinear interpolation, but this deviates from the INR "paradigm" and makes the generation slower.
-Note: the above CIPS implementation is not exact. See [CIPS](https://github.com/saic-mdal/CIPS) for the exact one.
+*`INR-GAN-bil` model uses bilinear interpolation (and instance norm) which "deviates" from the INR "paradigm" because pixels are now generated non-independently. However, it still uses only fully-connected layers (i.e. no convolutions) to generate an image.
+
+The inference speed in terms of #imgs/sec was measured on a single NVidia V100 GPU (32 Gb) *without* using the mixed precision (see the [profiling](#Profiling) section below).
+
+Note: our CIPS implementation is not exact. See [CIPS](https://github.com/saic-mdal/CIPS) for the exact one.
 
 For INR-GAN, memory usage is increased for 2 reasons:
 - we use coordinate embeddings for high-resolutions
@@ -45,13 +49,18 @@ This training command will create an experiment inside `experiments/` directory 
 This is needed to isolate the code which produces the model.
 
 ### Pretrained checkpoints
-We provide checkpoints for the following datasets:
+`INR-GAN` checkpoints:
 - [LSUN Churches 256x256](https://kaust-cair.s3.amazonaws.com/inr-gan/checkpoints/churches.pkl) with FID = 4.45.
 - [LSUN Bedrooms 256x256](https://kaust-cair.s3.amazonaws.com/inr-gan/checkpoints/bedrooms.pkl) with FID = 5.71 (setting truncation to 0.9 is crucial for it).
 - [FFHQ 256x256](https://kaust-cair.s3.amazonaws.com/inr-gan/checkpoints/ffhq.pkl) with FID = 9.57.
 
 For Churches, the model works well without additional convolutions on top of 128x128 and 256x256 blocks, that's why we do not use them for this dataset (i.e. `extra_convs: {}` in the `inr-gan.yml` config) which makes it run in 301.69 imgs/second.
 We believe that the reason why it works better on Churches compared to other datasets is that this dataset contains more high-frequency details.
+
+`INR-GAN-bil` checkpoints:
+- [LSUN Churches 256x256](https://kaust-cair.s3.amazonaws.com/inr-gan/checkpoints/churches-bil.pkl) with FID = 4.04.
+- [LSUN Bedrooms 256x256](https://kaust-cair.s3.amazonaws.com/inr-gan/checkpoints/bedrooms-bil.pkl) with FID = 3.43 (setting truncation to 0.95 is crucial for it).
+- [FFHQ 256x256](https://kaust-cair.s3.amazonaws.com/inr-gan/checkpoints/ffhq-bil.pkl) with FID = 4.95.
 
 ### Data format
 We use the same data format as the original [StyleGAN2-ADA](https://github.com/NVlabs/stylegan2-ada-pytorch) repo: it is a zip of images.

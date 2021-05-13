@@ -295,6 +295,7 @@ class SynthesisLayer(torch.nn.Module):
         resample_filter = [1,3,3,1],    # Low-pass filter to apply when resampling activations.
         conv_clamp      = None,         # Clamp the output of convolution layers to +-X, None = disable clamping.
         channels_last   = False,        # Use channels_last format for the weights?
+        instance_norm   = False,        # Use instance norm?
         cfg             = {},           # Additional config
     ):
         super().__init__()
@@ -318,6 +319,7 @@ class SynthesisLayer(torch.nn.Module):
             self.register_buffer('noise_const', torch.randn([resolution, resolution]))
             self.noise_strength = torch.nn.Parameter(torch.zeros([]))
         self.bias = torch.nn.Parameter(torch.zeros([out_channels]))
+        self.instance_norm = instance_norm
 
     def forward(self, x, w, noise_mode='random', fused_modconv=True, gain=1):
         assert noise_mode in ['random', 'const', 'none']
@@ -332,6 +334,9 @@ class SynthesisLayer(torch.nn.Module):
             noise = self.noise_const * self.noise_strength
 
         flip_weight = (self.up == 1) # slightly faster
+
+        if self.instance_norm:
+            x = x / (x.std(dim=[2,3], keepdim=True) + 1e-8) # [batch_size, c, h, w]
 
         if self.cfg.fmm.enabled:
             x = fmm_modulate_linear(x=x, weight=self.weight, styles=styles, noise=noise, activation=self.cfg.fmm.activation)
@@ -430,7 +435,8 @@ class SynthesisBlock(torch.nn.Module):
             conv1_in_channels = out_channels
 
         self.conv1 = SynthesisLayer(conv1_in_channels, out_channels, w_dim=w_dim, resolution=self.resolution,
-            conv_clamp=conv_clamp, channels_last=self.channels_last, kernel_size=kernel_size, cfg=cfg, **layer_kwargs)
+            conv_clamp=conv_clamp, channels_last=self.channels_last, kernel_size=kernel_size, cfg=cfg,
+            instance_norm=(in_channels > 0 and cfg.get('fmm', {}).get('instance_norm', False)), **layer_kwargs)
         self.num_conv += 1
 
         if self.cfg.get('num_extra_convs', {}).get(str(self.resolution), 0) > 0:
@@ -438,7 +444,8 @@ class SynthesisBlock(torch.nn.Module):
             self.extra_convs = nn.ModuleList([
                 SynthesisLayer(out_channels, out_channels, w_dim=w_dim, resolution=self.resolution,
                     conv_clamp=conv_clamp, channels_last=self.channels_last, kernel_size=kernel_size,
-                    cfg=cfg, **layer_kwargs) for _ in range(self.cfg.num_extra_convs[str(self.resolution)])])
+                    instance_norm=cfg.get('fmm', {}).get('instance_norm', False), cfg=cfg, **layer_kwargs)
+                    for _ in range(self.cfg.num_extra_convs[str(self.resolution)])])
             self.num_conv += len(self.extra_convs)
         else:
             self.extra_convs = None
