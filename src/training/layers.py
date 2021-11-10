@@ -109,7 +109,7 @@ class CoordFuser(nn.Module):
 
         self.cfg = cfg
         self.resolution = resolution
-        self.res_cfg = self.cfg.res_configs[str(resolution)]
+        self.res_cfg = self.cfg.res_configs[str(self.resolution)]
         self.log_emb_size = self.res_cfg.get('log_emb_size', 0)
         self.random_emb_size = self.res_cfg.get('random_emb_size', 0)
         self.shared_emb_size = self.res_cfg.get('shared_emb_size', 0)
@@ -125,7 +125,7 @@ class CoordFuser(nn.Module):
 
         if self.log_emb_size > 0:
             self.register_buffer('log_basis', generate_logarithmic_basis(
-                resolution, self.log_emb_size, use_diagonal=self.res_cfg.get('use_diagonal', False))) # [log_emb_size, 2]
+                self.resolution, self.log_emb_size, use_diagonal=self.res_cfg.get('use_diagonal', False))) # [log_emb_size, 2]
 
         if self.random_emb_size > 0:
             self.register_buffer('random_basis', self.sample_w_matrix((self.random_emb_size, 2), self.fourier_scale))
@@ -139,7 +139,7 @@ class CoordFuser(nn.Module):
             self.affine = FullyConnectedLayer(w_dim, self.W_size + self.b_size, bias_init=0)
 
         if self.const_emb_size > 0:
-            self.const_embs = nn.Parameter(torch.randn(1, self.const_emb_size, resolution, resolution).contiguous())
+            self.const_embs = nn.Parameter(torch.randn(1, self.const_emb_size, self.resolution, self.resolution).contiguous())
 
         self.total_dim = self.get_total_dim()
         self.is_modulated = (self.predictable_emb_size > 0)
@@ -232,7 +232,12 @@ class CoordFuser(nn.Module):
             self._fourier_embs_cache = out[:, x.shape[1]:].detach()
 
         if self.const_emb_size > 0:
-            const_embs = self.const_embs.repeat([batch_size, 1, 1, 1])
+            const_embs = self.const_embs # [1, const_emb_size, self.resolution, self.resolution]
+            if img_size > self.resolution:
+                # We are performing INR upsamping. Everything is adjusted automatically, except for const_embs.
+                #const_embs = F.interpolate(const_embs, size=(img_size, img_size), mode='bilinear', align_corners=False) # [1, const_emb_size, img_size, img_size]
+                const_embs = F.interpolate(const_embs, size=(img_size, img_size), mode='nearest') # [1, const_emb_size, img_size, img_size]
+            const_embs = const_embs.repeat([batch_size, 1, 1, 1]) # [batch_size, const_emb_size, img_size, img_size]
             const_embs = const_embs.to(dtype=dtype, memory_format=memory_format)
             out = torch.cat([out, const_embs], dim=1) # [batch_size, total_dim, img_size, img_size]
 

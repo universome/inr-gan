@@ -323,8 +323,6 @@ class SynthesisLayer(torch.nn.Module):
 
     def forward(self, x, w, noise_mode='random', fused_modconv=True, gain=1):
         assert noise_mode in ['random', 'const', 'none']
-        in_resolution = self.resolution // self.up
-        misc.assert_shape(x, [None, self.weight.shape[1], in_resolution, in_resolution])
         styles = self.affine(w)
 
         noise = None
@@ -459,7 +457,7 @@ class SynthesisBlock(torch.nn.Module):
             self.skip = Conv2dLayer(in_channels, out_channels, kernel_size=1, bias=False, up=self.up,
                 resample_filter=resample_filter, channels_last=self.channels_last)
 
-    def forward(self, x, img, ws, force_fp32=False, fused_modconv=None, **layer_kwargs):
+    def forward(self, x, img, ws, force_fp32=False, fused_modconv=None, upsampling_factor: int=1, **layer_kwargs):
         misc.assert_shape(ws, [None, self.num_conv + self.num_torgb, self.w_dim])
         w_iter = iter(ws.unbind(dim=1))
         dtype = torch.float16 if self.use_fp16 and not force_fp32 else torch.float32
@@ -474,10 +472,9 @@ class SynthesisBlock(torch.nn.Module):
             conv1_w = next(w_iter)
             x = self.input(ws.shape[0], conv1_w, device=ws.device, dtype=dtype, memory_format=memory_format)
         else:
-            misc.assert_shape(x, [None, self.in_channels, self.input_resolution, self.input_resolution])
             x = x.to(dtype=dtype, memory_format=memory_format)
 
-        x = maybe_upsample(x, self.cfg.upsampling_mode, self.up)
+        x = maybe_upsample(x, self.cfg.upsampling_mode, self.up * upsampling_factor)
 
         # Main layers.
         if self.in_channels == 0:
@@ -502,13 +499,11 @@ class SynthesisBlock(torch.nn.Module):
 
         # ToRGB.
         if img is not None:
-            misc.assert_shape(img, [None, self.img_channels, self.input_resolution, self.input_resolution])
-
-            if self.up == 2:
+            if self.up * upsampling_factor > 1:
                 if self.cfg.upsampling_mode is None:
-                    img = upfirdn2d.upsample2d(img, self.resample_filter)
+                    img = upfirdn2d.upsample2d(img, self.resample_filter, up=self.up * upsampling_factor)
                 else:
-                    img = maybe_upsample(img, self.cfg.upsampling_mode, 2)
+                    img = maybe_upsample(img, self.cfg.upsampling_mode, self.up * upsampling_factor)
 
         if self.is_last or self.architecture == 'skip':
             y = self.torgb(x, next(w_iter), fused_modconv=fused_modconv)
@@ -559,7 +554,7 @@ class SynthesisNetwork(torch.nn.Module):
                 self.num_ws += block.num_torgb
             setattr(self, f'b{res}', block)
 
-    def forward(self, ws, **block_kwargs):
+    def forward(self, ws, upsampling_factor: int=1, upsampling_block_res: int=None, **block_kwargs):
         block_ws = []
         with torch.autograd.profiler.record_function('split_ws'):
             misc.assert_shape(ws, [None, self.num_ws, self.w_dim])
@@ -573,7 +568,8 @@ class SynthesisNetwork(torch.nn.Module):
         x = img = None
         for res, cur_ws in zip(self.block_resolutions, block_ws):
             block = getattr(self, f'b{res}')
-            x, img = block(x, img, cur_ws, **block_kwargs)
+            curr_upsampling_factor = 1 if (upsampling_factor == 1 or res != upsampling_block_res) else upsampling_factor
+            x, img = block(x, img, cur_ws, upsampling_factor=curr_upsampling_factor, **block_kwargs)
         return img
 
 #----------------------------------------------------------------------------
